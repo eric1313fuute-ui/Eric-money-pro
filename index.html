@@ -1,0 +1,1192 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>效率記帳本 Pro</title>
+    <!-- 引入 React 和 ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- 引入 Babel 用於解析 JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { -webkit-tap-highlight-color: transparent; }
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom, 20px); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes slideUp {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .animate-fade-in { animation: fadeIn 0.2s ease-out forwards; }
+        .animate-slide-up { animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 font-sans antialiased">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useRef } = React;
+
+        // --- Icon Components ---
+        const Icon = ({ size = 24, className = "", children }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                {children}
+            </svg>
+        );
+
+        const Plus = (props) => <Icon {...props}><path d="M5 12h14"/><path d="M12 5v14"/></Icon>;
+        const Search = (props) => <Icon {...props}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></Icon>;
+        const CreditCard = (props) => <Icon {...props}><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></Icon>;
+        const Wallet = (props) => <Icon {...props}><path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"/><path d="M4 6v12c0 1.1.9 2 2 2h14v-4"/><path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4h-4z"/></Icon>;
+        const PieChart = (props) => <Icon {...props}><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></Icon>;
+        const Home = (props) => <Icon {...props}><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></Icon>;
+        const Landmark = (props) => <Icon {...props}><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></Icon>;
+        const Sparkles = (props) => <Icon {...props}><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M9 3v4"/><path d="M3 5h4"/><path d="M3 9h4"/></Icon>;
+        const User = (props) => <Icon {...props}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></Icon>;
+        const Settings = (props) => <Icon {...props}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></Icon>;
+        const ChevronDown = (props) => <Icon {...props}><polyline points="6 9 12 15 18 9"/></Icon>;
+        const ChevronUp = (props) => <Icon {...props}><polyline points="18 15 12 9 6 15"/></Icon>;
+        const Filter = (props) => <Icon {...props}><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></Icon>;
+        const X = (props) => <Icon {...props}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></Icon>;
+        const CheckCircle = (props) => <Icon {...props}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></Icon>;
+        const AlertCircle = (props) => <Icon {...props}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></Icon>;
+        const Download = (props) => <Icon {...props}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></Icon>;
+        const Upload = (props) => <Icon {...props}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></Icon>;
+        const Trash2 = (props) => <Icon {...props}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></Icon>;
+        const CalendarClock = (props) => <Icon {...props}><path d="M21 7.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.5"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h5"/><path d="M3 14h3"/><path d="M12 12v6h-2"/><circle cx="16" cy="18" r="5"/><polyline points="16 16 16 18 18 18"/></Icon>;
+        const Repeat = (props) => <Icon {...props}><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></Icon>;
+        const PlayCircle = (props) => <Icon {...props}><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></Icon>;
+        const FileText = (props) => <Icon {...props}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></Icon>;
+        const Globe = (props) => <Icon {...props}><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></Icon>;
+        const ChevronRight = (props) => <Icon {...props}><polyline points="9 18 15 12 9 6"/></Icon>;
+
+        // --- 多國語言字典 ---
+        const i18n = {
+            'zh-TW': {
+                appTitle: '效率記帳本 Pro', home: '總覽', cards: '帳單', add: '新增', stats: '統計', search: '查詢', settings: '設定',
+                balance: '我的資產結餘', netIncome: '本月淨收入', todayExp: '今日支出', weekExp: '本週支出', monthExp: '本月支出',
+                manageSubs: '管理固定扣款 / 訂閱', subDesc: '設定每月房租、Netflix 等固定支出', subManage: '管理',
+                genieTotal: '神燈累計支付', recentTitle: '近期紀錄', viewAll: '查看全部', noRecord: '目前尚無紀錄',
+                addTitle: '新增紀錄', selfPay: '自己付', geniePay: '神燈付', exp: '支出', inc: '收入',
+                nameField: '名稱', namePh: '輸入名稱...', quickTags: '快捷紀錄',
+                dateField: '交易日期', catField: '選擇類別', payMethod: '付款方式', saveBtn: '儲存紀錄', saveGenieBtn: '記錄神燈支出',
+                qBreak: '早餐', qLunch: '午餐', qDinner: '晚餐', qDrink: '飲料', qTrans: '交通',
+                statsTitle: '支出分析', allTime: '全部時間', selfExp: '我的支出', genieExp: '神燈支出', catDist: '自付類別分佈',
+                statDetail: '分類明細', noStatData: '此期間無支出數據',
+                cardTitle: '本期帳單詳情', cardClose: '本期結算日', paid: '已繳清', myPayAmt: '我需支付的金額', exportBtn: '匯出',
+                genieThisMonth: '神燈本期代付', markPaid: '標記為已繳', noSelfExp: '本期無自付消費',
+                pastDue: '注意：尚有前期未結款項', historyCards: '歷史帳單紀錄', transCount: '筆交易',
+                searchTitle: '查詢紀錄', searchPh: '關鍵字搜尋...', clearFilter: '清除篩選條件', totalResult: '共 {num} 筆資料',
+                subTitle: '固定扣款管理', addSub: '新增固定項目', subName: '項目名稱', subAmt: '金額', subCycle: '扣款週期',
+                subNext: '下次扣款日', addSubConfirm: '確認新增', cycleMon: '每月', cycleWeek: '每週', cycleYear: '每年',
+                overdue: '(已過期)', soon: '(即將到期)', noSubs: '目前沒有設定固定扣款項目',
+                settingTitle: '偏好設定', langTitle: '語言設定', langZh: '繁體中文', langEn: 'English',
+                monthlyClose: '每月結算日', closeFreq: '結算頻率', freq1: '每月一次', freq2: '雙月結算 (雙數月)', freq3: '雙月結算 (單數月)',
+                backupTitle: '資料備份與還原', backupDesc: '您可以將記帳資料下載保存，或從備份檔案還原資料。',
+                exportZip: '匯出備份', importZip: '還原資料', resetAll: '重設所有資料',
+                cancel: '取消', confirm: '確認', confirmDel: '確認刪除',
+                dailyBudget: '每日預算', budgetRemaining: '剩餘預算', autoSubPaid: '系統自動扣款'
+            },
+            'en': {
+                appTitle: 'Expense Pro', home: 'Home', cards: 'Bills', add: 'Add', stats: 'Stats', search: 'Search', settings: 'Settings',
+                balance: 'Total Balance', netIncome: 'Net Income', todayExp: 'Today', weekExp: 'This Week', monthExp: 'This Month',
+                manageSubs: 'Manage Subscriptions', subDesc: 'Set recurring expenses like Rent, Netflix', subManage: 'Manage',
+                genieTotal: 'Genie Total Paid', recentTitle: 'Recent Transactions', viewAll: 'View All', noRecord: 'No records yet',
+                addTitle: 'Add Record', selfPay: 'Self Pay', geniePay: 'Genie Pay', exp: 'Expense', inc: 'Income',
+                nameField: 'Note/Name', namePh: 'Enter note...', quickTags: 'Quick Tags',
+                dateField: 'Date', catField: 'Category', payMethod: 'Payment', saveBtn: 'Save Record', saveGenieBtn: 'Save Genie Expense',
+                qBreak: 'Breakfast', qLunch: 'Lunch', qDinner: 'Dinner', qDrink: 'Drinks', qTrans: 'Transit',
+                statsTitle: 'Analytics', allTime: 'All Time', selfExp: 'My Expense', genieExp: 'Genie Expense', catDist: 'Category Dist.',
+                statDetail: 'Category Details', noStatData: 'No data for this period',
+                cardTitle: 'Current Bill', cardClose: 'Closing Date', paid: 'Paid', myPayAmt: 'My Total Payable', exportBtn: 'Export',
+                genieThisMonth: 'Genie Paid This Month', markPaid: 'Mark Paid', noSelfExp: 'No self expenses this period',
+                pastDue: 'Note: Unpaid balance from previous bills', historyCards: 'History Bills', transCount: 'transactions',
+                searchTitle: 'Search', searchPh: 'Search keywords...', clearFilter: 'Clear Filters', totalResult: 'Total {num} records',
+                subTitle: 'Subscriptions', addSub: 'Add Subscription', subName: 'Item Name', subAmt: 'Amount', subCycle: 'Cycle',
+                subNext: 'Next Date', addSubConfirm: 'Confirm Add', cycleMon: 'Monthly', cycleWeek: 'Weekly', cycleYear: 'Yearly',
+                overdue: '(Overdue)', soon: '(Due Soon)', noSubs: 'No subscriptions set',
+                settingTitle: 'Preferences', langTitle: 'Language', langZh: '繁體中文', langEn: 'English',
+                monthlyClose: 'Closing Date', closeFreq: 'Billing Cycle', freq1: 'Monthly', freq2: 'Bi-monthly (Even)', freq3: 'Bi-monthly (Odd)',
+                backupTitle: 'Backup & Restore', backupDesc: 'Export your data to save or import from a backup file.',
+                exportZip: 'Export Data', importZip: 'Restore Data', resetAll: 'Reset All Data',
+                cancel: 'Cancel', confirm: 'Confirm', confirmDel: 'Delete',
+                dailyBudget: 'Daily Budget', budgetRemaining: 'Remaining', autoSubPaid: 'Auto Paid'
+            }
+        };
+
+        const categoryMap = {
+            '餐飲': 'Food', '交通': 'Transport', '購物': 'Shopping', '娛樂': 'Entertainment', '居住': 'Housing', '醫療': 'Medical', '教育': 'Education', '訂閱': 'Subscription', '其他': 'Other',
+            '薪資': 'Salary', '獎金': 'Bonus', '投資': 'Investment', '兼職': 'Part-time'
+        };
+        const payMap = { '現金': 'Cash', '信用卡': 'Credit Card', '銀行轉帳': 'Bank Transfer', '電子支付': 'E-Wallet' };
+
+        // --- 工具函數 ---
+        const formatDate = (dateString) => {
+            const date = new Date(dateString);
+            return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`;
+        };
+
+        const getWeekNumber = (d) => {
+            d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+            d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+            const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+            return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+        };
+
+        const getBillingCycle = (dateStr, closingDay = 20, cycleType = 'monthly') => {
+            const parts = dateStr.split('-');
+            let year = parseInt(parts[0], 10);
+            let month = parseInt(parts[1], 10);
+            const day = parseInt(parts[2], 10);
+
+            if (day > closingDay) {
+                month += 1;
+                if (month > 12) { month = 1; year += 1; }
+            }
+
+            if (cycleType === 'bimonthly-even') {
+                while (month % 2 !== 0) { month += 1; if (month > 12) { month = 1; year += 1; } }
+            } else if (cycleType === 'bimonthly-odd') {
+                while (month % 2 === 0) { month += 1; if (month > 12) { month = 1; year += 1; } }
+            }
+            
+            return `${year}/${String(month).padStart(2, '0')}/${String(closingDay).padStart(2, '0')}`;
+        };
+
+        // --- 彈窗元件 ---
+        const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, confirmText = "確認", confirmColor = "bg-red-500", t }) => {
+            if (!isOpen) return null;
+            return (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white rounded-2xl w-full max-w-xs p-6 shadow-2xl">
+                        <h3 className="text-lg font-bold text-slate-800 mb-2">{title}</h3>
+                        <p className="text-slate-500 text-sm mb-6">{message}</p>
+                        <div className="flex gap-3">
+                            <button onClick={onCancel} className="flex-1 py-2 text-slate-500 font-bold hover:bg-slate-50 rounded-lg transition-colors">{t('cancel')}</button>
+                            <button onClick={onConfirm} className={`flex-1 py-2 text-white font-bold rounded-lg transition-colors ${confirmColor} hover:opacity-90`}>{confirmText}</button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- SVG Pie Chart ---
+        const SimplePieChart = ({ data, onSliceClick, t, lang }) => {
+            if (!data || data.length === 0) return (
+                <div className="flex flex-col items-center justify-center py-10 opacity-50">
+                    <div className="w-32 h-32 rounded-full border-4 border-slate-100 flex items-center justify-center mb-2">
+                        <span className="text-2xl text-slate-300">0%</span>
+                    </div>
+                    <p className="text-slate-400 text-xs">{t('noStatData')}</p>
+                </div>
+            );
+
+            let cumulativePercent = 0;
+            const getCoordinatesForPercent = (percent) => {
+                const x = Math.cos(2 * Math.PI * percent);
+                const y = Math.sin(2 * Math.PI * percent);
+                return [x, y];
+            };
+
+            const slices = data.map(slice => {
+                const [startX, startY] = getCoordinatesForPercent(cumulativePercent);
+                cumulativePercent += slice.percent;
+                const [endX, endY] = getCoordinatesForPercent(cumulativePercent);
+                const largeArcFlag = slice.percent > 0.5 ? 1 : 0;
+                const pathData = slice.percent >= 0.999 
+                    ? `M 1 0 A 1 1 0 1 1 -1 0 A 1 1 0 1 1 1 0`
+                    : `M 0 0 L ${startX} ${startY} A 1 1 0 ${largeArcFlag} 1 ${endX} ${endY} L 0 0`;
+                return { ...slice, pathData };
+            });
+
+            return (
+                <div className="flex flex-col items-center">
+                    <div className="relative w-48 h-48 mb-6">
+                        <svg viewBox="-1 -1 2 2" className="transform -rotate-90 w-full h-full overflow-visible">
+                            {slices.map((slice, index) => (
+                                <path key={index} d={slice.pathData} fill={slice.color} stroke="white" strokeWidth="0.02" />
+                            ))}
+                        </svg>
+                        <div className="absolute inset-0 m-auto w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-inner">
+                            <span className="text-xs font-bold text-slate-400">{t('catDist')}</span>
+                        </div>
+                    </div>
+                    <div className="w-full grid grid-cols-1 gap-2">
+                        {data.map((slice, index) => (
+                            <div key={index} onClick={() => onSliceClick(slice.originalCategory)} className="cursor-pointer group flex items-center justify-between text-xs p-3 bg-white border border-slate-100 rounded-lg shadow-sm hover:border-blue-300 transition-colors active:scale-[0.98]">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: slice.color }}></div>
+                                    <span className="text-slate-700 font-bold text-sm group-hover:text-blue-600 transition-colors">{slice.category}</span>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <span className="text-slate-900 font-black text-sm">NT$ {slice.amount.toLocaleString()}</span>
+                                    <span className="text-slate-400 font-medium bg-slate-50 px-2 py-0.5 rounded-md min-w-[3rem] text-center">{Math.round(slice.percent * 100)}%</span>
+                                    <ChevronRight size={14} className="text-slate-300 group-hover:text-blue-500" />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Main App Component ---
+        function App() {
+            const [lang, setLang] = useState('zh-TW');
+            const t = (key) => i18n[lang][key] || key;
+            const getCat = (cat) => lang === 'en' ? (categoryMap[cat] || cat) : cat;
+            const getPay = (method) => lang === 'en' ? (payMap[method] || method) : method;
+
+            const [activeTab, setActiveTab] = useState('home'); 
+            const [transactions, setTransactions] = useState([]);
+            const [subscriptions, setSubscriptions] = useState([]);
+            const [billingSettings, setBillingSettings] = useState({ closingDay: 20, cycleType: 'monthly', dailyBudget: 500 });
+            
+            // 表單狀態
+            const [amount, setAmount] = useState('');
+            const [type, setType] = useState('expense'); 
+            const [category, setCategory] = useState('餐飲');
+            const [paymentMethod, setPaymentMethod] = useState('現金');
+            const [payer, setPayer] = useState('self'); 
+            const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+            const [note, setNote] = useState('');
+
+            // 統計與篩選狀態
+            const [statsCycle, setStatsCycle] = useState('all');
+            const [statDetailCategory, setStatDetailCategory] = useState(null); // 用於儲存要展開明細的類別
+            
+            const [searchKeyword, setSearchKeyword] = useState('');
+            const [searchMinAmount, setSearchMinAmount] = useState('');
+            const [searchMaxAmount, setSearchMaxAmount] = useState('');
+            const [searchCategory, setSearchCategory] = useState('');
+            const [searchStartDate, setSearchStartDate] = useState('');
+            const [searchEndDate, setSearchEndDate] = useState('');
+            const [showFilters, setShowFilters] = useState(false);
+            
+            const [expandedBill, setExpandedBill] = useState(null);
+            const [selectedTransaction, setSelectedTransaction] = useState(null);
+            
+            const [confirmState, setConfirmState] = useState({ 
+                isOpen: false, type: null, data: null, title: '', message: '', confirmText: '確認', confirmColor: 'bg-red-500'
+            });
+            const fileInputRef = useRef(null);
+
+            // 訂閱狀態
+            const [subName, setSubName] = useState('');
+            const [subAmount, setSubAmount] = useState('');
+            const [subCycle, setSubCycle] = useState('monthly');
+            const [subNextDate, setSubNextDate] = useState(new Date().toISOString().split('T')[0]);
+            const [isAddingSub, setIsAddingSub] = useState(false);
+
+            useEffect(() => {
+                const savedData = localStorage.getItem('expense_tracker_pro_data');
+                const parsedTrans = savedData ? JSON.parse(savedData) : [];
+                
+                const savedSettings = localStorage.getItem('expense_tracker_pro_settings');
+                if (savedSettings) setBillingSettings(JSON.parse(savedSettings));
+                
+                const savedSubs = localStorage.getItem('expense_tracker_pro_subs');
+                const parsedSubs = savedSubs ? JSON.parse(savedSubs) : [];
+                
+                const savedLang = localStorage.getItem('expense_tracker_pro_lang');
+                const currentLang = savedLang || 'zh-TW';
+                if (savedLang) setLang(savedLang);
+
+                // --- 自動扣款邏輯 (Auto Subscription Deductions) ---
+                const todayStr = new Date().toISOString().split('T')[0];
+                let newTrans = [...parsedTrans];
+                let subsUpdated = false;
+                
+                const updatedSubs = parsedSubs.map(sub => {
+                    let currentSub = { ...sub };
+                    // 如果設定的下次扣款日 小於或等於 今天，執行自動扣款並推延日期
+                    while (currentSub.nextDate <= todayStr) {
+                        const newTransaction = {
+                            id: Date.now() + Math.floor(Math.random() * 10000), // 確保自動產生的 ID 唯一
+                            amount: parseFloat(currentSub.amount),
+                            type: 'expense',
+                            category: currentSub.category || '訂閱',
+                            paymentMethod: '信用卡',
+                            payer: 'self',
+                            date: currentSub.nextDate,
+                            note: `${i18n[currentLang]['subTitle']}：${currentSub.name} (${i18n[currentLang]['autoSubPaid']})`,
+                            isPaid: false
+                        };
+                        newTrans.unshift(newTransaction);
+
+                        // 推延下次日期
+                        const currentDueDate = new Date(currentSub.nextDate);
+                        let nextDueDate = new Date(currentDueDate);
+                        if (currentSub.cycle === 'monthly') nextDueDate.setMonth(nextDueDate.getMonth() + 1);
+                        else if (currentSub.cycle === 'weekly') nextDueDate.setDate(nextDueDate.getDate() + 7);
+                        else if (currentSub.cycle === 'yearly') nextDueDate.setFullYear(nextDueDate.getFullYear() + 1);
+                        
+                        currentSub.nextDate = nextDueDate.toISOString().split('T')[0];
+                        subsUpdated = true;
+                    }
+                    return currentSub;
+                });
+
+                if (subsUpdated) {
+                    setTransactions(newTrans);
+                    setSubscriptions(updatedSubs);
+                } else {
+                    if (savedData) setTransactions(parsedTrans);
+                    if (savedSubs) setSubscriptions(parsedSubs);
+                }
+            }, []);
+
+            useEffect(() => { localStorage.setItem('expense_tracker_pro_data', JSON.stringify(transactions)); }, [transactions]);
+            useEffect(() => { localStorage.setItem('expense_tracker_pro_settings', JSON.stringify(billingSettings)); setStatsCycle('all'); }, [billingSettings]);
+            useEffect(() => { localStorage.setItem('expense_tracker_pro_subs', JSON.stringify(subscriptions)); }, [subscriptions]);
+            useEffect(() => { localStorage.setItem('expense_tracker_pro_lang', lang); }, [lang]);
+
+            const expenseCategories = ['餐飲', '交通', '購物', '娛樂', '居住', '醫療', '教育', '訂閱', '其他'];
+            const incomeCategories = ['薪資', '獎金', '投資', '兼職', '其他'];
+            const paymentMethods = ['現金', '信用卡', '銀行轉帳', '電子支付'];
+            const chartColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#6366f1', '#64748b', '#0ea5e9'];
+
+            const globalStats = useMemo(() => {
+                const todayStr = new Date().toISOString().split('T')[0];
+                const currentMonthPrefix = todayStr.slice(0, 7);
+                
+                let totalIncome = 0; let totalExpense = 0; let totalUnpaidCredit = 0; let totalGenieExpense = 0;  
+                let todayExpense = 0; let weekExpense = 0; let monthExpense = 0; let monthIncome = 0;
+
+                const creditBills = {}; const genieBills = {};  
+
+                transactions.forEach(t => {
+                    const tDate = new Date(t.date);
+                    const amt = parseFloat(t.amount);
+                    const isGenie = t.payer === 'genie';
+                    const tCycleStr = getBillingCycle(t.date, billingSettings.closingDay, billingSettings.cycleType);
+                    const isCurrentMonth = t.date.startsWith(currentMonthPrefix);
+
+                    if (t.type === 'income') {
+                        totalIncome += amt;
+                        if (isCurrentMonth) monthIncome += amt;
+                    } else {
+                        if (isGenie) {
+                            totalGenieExpense += amt;
+                            if (!genieBills[tCycleStr]) genieBills[tCycleStr] = { total: 0, items: [] };
+                            genieBills[tCycleStr].items.push(t);
+                            genieBills[tCycleStr].total += amt;
+                        } else {
+                            totalExpense += amt;
+                            if (t.date === todayStr) todayExpense += amt;
+                            if (isCurrentMonth) monthExpense += amt;
+                            if (getWeekNumber(tDate) === getWeekNumber(new Date()) && tDate.getFullYear() === new Date().getFullYear()) weekExpense += amt;
+
+                            if (t.paymentMethod === '信用卡') {
+                                if (!t.isPaid) totalUnpaidCredit += amt;
+                                if (!creditBills[tCycleStr]) creditBills[tCycleStr] = { total: 0, unpaid: 0, items: [] };
+                                creditBills[tCycleStr].items.push(t);
+                                creditBills[tCycleStr].total += amt;
+                                if (!t.isPaid) creditBills[tCycleStr].unpaid += amt;
+                            }
+                        }
+                    }
+                });
+
+                const sortedBillDates = Object.keys(creditBills).sort((a, b) => new Date(b) - new Date(a));
+                const sortedGenieDates = Object.keys(genieBills).sort((a, b) => new Date(b) - new Date(a));
+
+                return {
+                    balance: totalIncome - totalExpense,
+                    monthNetIncome: monthIncome - monthExpense,
+                    totalIncome, totalExpense, totalGenieExpense, totalUnpaidCredit,
+                    todayExpense, weekExpense, monthExpense,
+                    creditBills, sortedBillDates, genieBills, sortedGenieDates
+                };
+            }, [transactions, billingSettings]);
+
+            const filteredTransactionsForStats = useMemo(() => {
+                if (statsCycle === 'all') return transactions;
+                return transactions.filter(t => getBillingCycle(t.date, billingSettings.closingDay, billingSettings.cycleType) === statsCycle);
+            }, [transactions, statsCycle, billingSettings]);
+
+            // --- Handlers ---
+            const handleAddTransaction = (e) => {
+                e.preventDefault();
+                if (!amount || !category) return;
+                const newTransaction = {
+                    id: Date.now(), amount: parseFloat(amount), type, category, paymentMethod, payer, date, note,
+                    isPaid: (paymentMethod === '信用卡' && payer === 'self') ? false : true
+                };
+                setTransactions([newTransaction, ...transactions]);
+                setAmount(''); setNote(''); setActiveTab('home');
+            };
+
+            const handleQuickTag = (tagNote, tagCat) => {
+                setNote(tagNote);
+                setCategory(tagCat);
+                setType('expense');
+            };
+
+            const triggerDelete = (id) => {
+                setConfirmState({ 
+                    isOpen: true, type: 'delete', data: id, 
+                    title: t('confirmDel'), message: '確定要永久刪除這筆記帳嗎？此動作無法復原。',
+                    confirmText: t('confirmDel'), confirmColor: 'bg-red-500'
+                });
+            };
+
+            const triggerReset = () => {
+                setConfirmState({
+                    isOpen: true, type: 'reset', data: null, 
+                    title: t('resetAll'), message: '警告：這將會清空您所有的記帳資料與設定，且無法復原。建議您先進行備份。確定要執行嗎？',
+                    confirmText: t('confirm'), confirmColor: 'bg-red-600'
+                });
+            };
+            
+            const handleAddSubscription = (e) => {
+                e.preventDefault();
+                if (!subName || !subAmount) return;
+                const newSub = { id: Date.now(), name: subName, amount: parseFloat(subAmount), cycle: subCycle, nextDate: subNextDate, category: '訂閱' };
+                setSubscriptions([...subscriptions, newSub]);
+                setSubName(''); setSubAmount(''); setIsAddingSub(false);
+            };
+            
+            const handlePaySubscription = (sub) => {
+                const newTransaction = {
+                    id: Date.now(), amount: parseFloat(sub.amount), type: 'expense', category: sub.category,
+                    paymentMethod: '信用卡', payer: 'self', date: sub.nextDate, note: `${t('subTitle')}：${sub.name}`, isPaid: false
+                };
+                setTransactions([newTransaction, ...transactions]);
+                
+                const currentDueDate = new Date(sub.nextDate);
+                let nextDueDate = new Date(currentDueDate);
+                if (sub.cycle === 'monthly') nextDueDate.setMonth(nextDueDate.getMonth() + 1);
+                else if (sub.cycle === 'weekly') nextDueDate.setDate(nextDueDate.getDate() + 7);
+                else if (sub.cycle === 'yearly') nextDueDate.setFullYear(nextDueDate.getFullYear() + 1);
+                
+                const nextDateStr = nextDueDate.toISOString().split('T')[0];
+                setSubscriptions(subscriptions.map(s => s.id === sub.id ? { ...s, nextDate: nextDateStr } : s));
+            };
+
+            const deleteSubscription = (id) => {
+                 setConfirmState({
+                     isOpen: true, type: 'deleteSub', data: id,
+                     title: t('confirmDel'), message: '確定要刪除這筆固定扣款設定嗎？',
+                     confirmText: t('confirmDel'), confirmColor: 'bg-red-500'
+                 });
+            };
+
+            const handleConfirmAction = () => {
+                const { type, data } = confirmState;
+                if (type === 'delete') setTransactions(transactions.filter(t => t.id !== data));
+                else if (type === 'deleteSub') setSubscriptions(subscriptions.filter(s => s.id !== data));
+                else if (type === 'reset') { localStorage.clear(); location.reload(); }
+                else if (type === 'import' && data) {
+                    if (data.transactions) setTransactions(data.transactions);
+                    if (data.settings) setBillingSettings(data.settings);
+                    if (data.subscriptions) setSubscriptions(data.subscriptions);
+                }
+                setConfirmState({ isOpen: false, type: null, data: null, title: '', message: '' });
+                setSelectedTransaction(null);
+            };
+
+            const toggleBillPayment = (billDate, targetStatus) => {
+                const updatedTransactions = transactions.map(t => {
+                    const isSelf = t.payer === 'self' || t.payer === undefined;
+                    if (t.paymentMethod === '信用卡' && isSelf && t.type === 'expense' && getBillingCycle(t.date, billingSettings.closingDay, billingSettings.cycleType) === billDate) {
+                        return { ...t, isPaid: targetStatus };
+                    }
+                    return t;
+                });
+                setTransactions(updatedTransactions);
+            };
+
+            const handleExport = () => {
+                const dataStr = JSON.stringify({ transactions, settings: billingSettings, subscriptions, version: "pro", exportDate: new Date().toISOString() }, null, 2);
+                const blob = new Blob([dataStr], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a'); a.href = url; a.download = `money_pro_backup_${new Date().toISOString().slice(0,10)}.json`;
+                document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+            };
+
+            const handleImportClick = () => { if (fileInputRef.current) fileInputRef.current.click(); };
+
+            const handleFileChange = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const data = JSON.parse(event.target.result);
+                        if (data.transactions && Array.isArray(data.transactions)) {
+                            setConfirmState({
+                                isOpen: true, type: 'import', data: data, title: t('importZip'),
+                                message: `成功讀取備份檔！包含 ${data.transactions.length} 筆交易紀錄。按下確認後將覆蓋目前的資料，確定還原？`,
+                                confirmText: t('importZip'), confirmColor: 'bg-yellow-500'
+                            });
+                        }
+                    } catch (err) { alert('無法讀取檔案'); }
+                };
+                reader.readAsText(file); e.target.value = ''; 
+            };
+
+            const clearSearch = () => {
+                setSearchKeyword(''); setSearchMinAmount(''); setSearchMaxAmount('');
+                setSearchCategory(''); setSearchStartDate(''); setSearchEndDate('');
+            };
+
+            const handleExportBillText = (cycleStr, selfBill, genieBill) => {
+                let text = `===================================\n        ${t('appTitle')} - ${t('cardTitle')}\n===================================\n${t('cardClose')}：${cycleStr}\n匯出日期：${new Date().toLocaleDateString('zh-TW')}\n\n`;
+                text += `【${t('myPayAmt')}】: NT$ ${selfBill.total.toLocaleString()}\n-----------------------------------\n`;
+                if (selfBill.items.length === 0) text += `(${t('noSelfExp')})\n`;
+                else selfBill.items.forEach(item => { text += `${item.date} | ${item.note || getCat(item.category)} | NT$ ${item.amount.toLocaleString()}\n`; });
+                text += `\n【${t('genieThisMonth')}】: NT$ ${genieBill.total.toLocaleString()}\n-----------------------------------\n`;
+                if (genieBill.items.length === 0) text += `(無神燈代付紀錄)\n`;
+                else genieBill.items.forEach(item => { text += `${item.date} | ${item.note || getCat(item.category)} | NT$ ${item.amount.toLocaleString()}\n`; });
+                text += `===================================\n`;
+                const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a'); a.href = url; a.download = `Bill_${cycleStr.replace(/\//g, '')}.txt`;
+                document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+            };
+
+            // --- Render Sections ---
+            const renderHome = () => {
+                const budget = billingSettings.dailyBudget || 0;
+                const remaining = budget - globalStats.todayExpense;
+                const budgetPercent = budget > 0 ? Math.min((globalStats.todayExpense / budget) * 100, 100) : 0;
+                const isOverBudget = remaining < 0;
+
+                return (
+                    <div className="space-y-6 pb-24 animate-fade-in">
+                        <div className="bg-gradient-to-r from-blue-600 to-indigo-800 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
+                            <div className="absolute top-0 right-0 p-4 opacity-10"><Wallet size={100} /></div>
+                            <div className="relative z-10">
+                                <p className="text-blue-100 text-sm mb-1">{t('balance')}</p>
+                                <h2 className="text-4xl font-bold mb-1">NT$ {globalStats.balance.toLocaleString()}</h2>
+                                {globalStats.totalUnpaidCredit > 0 && (
+                                    <p className="text-[10px] text-yellow-300 bg-white/10 px-2 py-1 rounded inline-flex items-center gap-1 mt-2">
+                                        <AlertCircle size={10}/> 信用卡未結: -{globalStats.totalUnpaidCredit.toLocaleString()}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* 每日預算區塊 */}
+                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 relative overflow-hidden">
+                            <div className="flex justify-between items-end mb-4">
+                                <div>
+                                    <p className="text-[10px] text-slate-500 mb-1 flex items-center gap-1"><CalendarClock size={12}/> {t('todayExp')} / {t('dailyBudget')}</p>
+                                    <div className="flex items-baseline gap-2">
+                                        <h3 className="text-2xl font-black text-slate-800">NT${globalStats.todayExpense.toLocaleString()}</h3>
+                                        <span className="text-sm font-bold text-slate-400">/ NT${budget.toLocaleString()}</span>
+                                    </div>
+                                </div>
+                                <div className={`text-right ${isOverBudget ? 'text-rose-500' : 'text-emerald-500'}`}>
+                                    <p className="text-[10px] font-bold">{t('budgetRemaining')}</p>
+                                    <p className="font-bold text-lg">NT${Math.abs(remaining).toLocaleString()}</p>
+                                </div>
+                            </div>
+                            <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                                <div className={`h-full transition-all duration-500 ${isOverBudget ? 'bg-rose-500' : 'bg-emerald-500'}`} style={{ width: `${budgetPercent}%` }}></div>
+                            </div>
+                        </div>
+
+                        <button onClick={() => setActiveTab('subscriptions')} className="w-full bg-indigo-50 border border-indigo-100 p-4 rounded-xl flex items-center justify-between group active:scale-[0.98] transition-all">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center"><CalendarClock size={20} /></div>
+                                <div className="text-left">
+                                    <p className="font-bold text-indigo-900 text-sm">{t('manageSubs')}</p>
+                                    <p className="text-[10px] text-indigo-400">{subscriptions.length > 0 ? `目前有 ${subscriptions.length} 個固定項目` : t('subDesc')}</p>
+                                </div>
+                            </div>
+                            <div className="bg-white text-indigo-600 px-3 py-1 rounded-full text-xs font-bold shadow-sm group-hover:bg-indigo-600 group-hover:text-white transition-colors">{t('subManage')}</div>
+                        </button>
+
+                        {globalStats.totalGenieExpense > 0 && (
+                            <div className="bg-purple-50 border border-purple-100 p-4 rounded-xl flex items-center justify-between">
+                                <div className="flex items-center gap-2 text-purple-700"><Sparkles size={18} /><span className="font-bold text-sm">{t('genieTotal')}</span></div>
+                                <span className="font-bold text-purple-700">NT$ {globalStats.totalGenieExpense.toLocaleString()}</span>
+                            </div>
+                        )}
+
+                        <div>
+                            <div className="flex justify-between items-center mb-3 px-1">
+                                <h3 className="font-bold text-slate-700">{t('recentTitle')}</h3>
+                                <button onClick={() => setActiveTab('search')} className="text-xs text-blue-600 font-medium">{t('viewAll')}</button>
+                            </div>
+                            <div className="space-y-3">
+                                {transactions.length > 0 ? transactions.slice(0, 5).map(t => (
+                                    <div onClick={() => setSelectedTransaction(t)} key={t.id} className="cursor-pointer bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center relative overflow-hidden active:bg-slate-50 active:scale-[0.99] transition-all">
+                                        {t.payer === 'genie' && <div className="absolute top-0 right-0 bg-purple-100 text-purple-600 text-[10px] px-2 py-0.5 rounded-bl-lg font-bold">神燈</div>}
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${t.payer === 'genie' ? 'bg-purple-100 text-purple-600' : t.type === 'income' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
+                                                {t.payer === 'genie' ? <Sparkles size={20} /> : (t.type === 'income' ? <Landmark size={20} /> : <CreditCard size={20} />)}
+                                            </div>
+                                            <div>
+                                                <p className="font-bold text-slate-800">{t.note || getCat(t.category)}</p>
+                                                <p className="text-[10px] text-slate-400">{formatDate(t.date)} • {getCat(t.category)}</p>
+                                            </div>
+                                        </div>
+                                        <div className={`font-bold ${t.type === 'income' ? 'text-emerald-600' : (t.payer === 'genie' ? 'text-purple-600' : 'text-slate-800')}`}>
+                                            {t.type === 'income' ? '+' : ''} {t.amount.toLocaleString()}
+                                        </div>
+                                    </div>
+                                )) : <div className="text-center py-10 bg-white rounded-xl border border-dashed border-slate-200"><p className="text-sm text-slate-400">{t('noRecord')}</p></div>}
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+
+            const renderAdd = () => (
+                <div className="pb-24 animate-fade-in space-y-5">
+                    <h2 className="text-2xl font-bold text-slate-800 px-1">{t('addTitle')}</h2>
+                    <form onSubmit={handleAddTransaction} className="space-y-5">
+                        
+                        {/* 支付者切換 */}
+                        <div className="flex gap-3">
+                            <button type="button" onClick={() => setPayer('self')} className={`flex-1 py-4 rounded-xl border-2 transition-all flex items-center justify-center gap-2 ${payer === 'self' ? 'border-blue-600 bg-blue-50 text-blue-700 font-bold' : 'border-white bg-white text-slate-400'}`}><User size={20} /> {t('selfPay')}</button>
+                            <button type="button" onClick={() => setPayer('genie')} className={`flex-1 py-4 rounded-xl border-2 transition-all flex items-center justify-center gap-2 ${payer === 'genie' ? 'border-purple-500 bg-purple-50 text-purple-700 font-bold' : 'border-white bg-white text-slate-400'}`}><Sparkles size={20} /> {t('geniePay')}</button>
+                        </div>
+
+                        {/* 名稱與快捷標籤 (移至上方) */}
+                        <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 space-y-3">
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase">{t('nameField')}</label>
+                            <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('namePh')} className="w-full bg-slate-50 p-3 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-100" />
+                            <div className="pt-2 border-t border-slate-50">
+                                <p className="text-[10px] font-bold text-slate-400 mb-2">{t('quickTags')}</p>
+                                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                                    <button type="button" onClick={()=>handleQuickTag(t('qBreak'), '餐飲')} className="shrink-0 px-3 py-1.5 bg-orange-50 text-orange-600 text-xs font-bold rounded-lg whitespace-nowrap">🍳 {t('qBreak')}</button>
+                                    <button type="button" onClick={()=>handleQuickTag(t('qLunch'), '餐飲')} className="shrink-0 px-3 py-1.5 bg-orange-50 text-orange-600 text-xs font-bold rounded-lg whitespace-nowrap">🍱 {t('qLunch')}</button>
+                                    <button type="button" onClick={()=>handleQuickTag(t('qDinner'), '餐飲')} className="shrink-0 px-3 py-1.5 bg-orange-50 text-orange-600 text-xs font-bold rounded-lg whitespace-nowrap">🍲 {t('qDinner')}</button>
+                                    <button type="button" onClick={()=>handleQuickTag(t('qDrink'), '餐飲')} className="shrink-0 px-3 py-1.5 bg-amber-50 text-amber-600 text-xs font-bold rounded-lg whitespace-nowrap">🧋 {t('qDrink')}</button>
+                                    <button type="button" onClick={()=>handleQuickTag(t('qTrans'), '交通')} className="shrink-0 px-3 py-1.5 bg-blue-50 text-blue-600 text-xs font-bold rounded-lg whitespace-nowrap">🚇 {t('qTrans')}</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 金額 */}
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-4">
+                            <div className="flex bg-slate-100 p-1 rounded-lg">
+                                <button type="button" className={`flex-1 py-2 rounded-md text-xs font-bold transition-all ${type === 'expense' ? 'bg-white shadow-sm text-rose-600' : 'text-slate-400'}`} onClick={() => { setType('expense'); setCategory(expenseCategories[0]); }}>{t('exp')}</button>
+                                <button type="button" className={`flex-1 py-2 rounded-md text-xs font-bold transition-all ${type === 'income' ? 'bg-white shadow-sm text-emerald-600' : 'text-slate-400'}`} onClick={() => { setType('income'); setCategory(incomeCategories[0]); }}>{t('inc')}</button>
+                            </div>
+                            <div className="relative">
+                                <span className="absolute left-0 top-3 text-slate-400 text-sm font-bold">NT$</span>
+                                <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full bg-transparent p-2 pl-10 text-4xl font-black border-b border-slate-100 focus:outline-none focus:border-blue-400 rounded-none placeholder-slate-100" placeholder="0" required />
+                            </div>
+                        </div>
+
+                        {/* 日期與分類 */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
+                                <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">{t('dateField')}</label>
+                                <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full bg-transparent text-sm font-bold text-slate-700 focus:outline-none" required />
+                            </div>
+                            <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
+                                <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">{t('catField')}</label>
+                                <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-transparent text-sm font-bold text-slate-700 focus:outline-none appearance-none">
+                                    {(type === 'expense' ? expenseCategories : incomeCategories).map(c => <option key={c} value={c}>{getCat(c)}</option>)}
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* 付款方式 */}
+                        <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
+                            <label className="block text-[10px] font-bold text-slate-400 mb-2 uppercase">{t('payMethod')}</label>
+                            <div className="grid grid-cols-4 gap-2">
+                                {paymentMethods.map(method => (
+                                    <button key={method} type="button" onClick={() => setPaymentMethod(method)} className={`py-2 rounded-lg text-[10px] font-bold border transition-all ${paymentMethod === method ? (payer === 'genie' ? 'bg-purple-100 text-purple-700 border-purple-300' : 'bg-blue-50 text-blue-700 border-blue-200') : 'bg-slate-50 text-slate-400 border-transparent'}`}>
+                                        {getPay(method)}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <button type="submit" className={`w-full py-4 rounded-2xl font-black text-lg shadow-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2 text-white ${payer === 'genie' ? 'bg-purple-600' : 'bg-slate-900'}`}>
+                            <Plus size={24} strokeWidth={3} /> {payer === 'genie' ? t('saveGenieBtn') : t('saveBtn')}
+                        </button>
+                    </form>
+                </div>
+            );
+
+            const renderStats = () => {
+                const allCycles = Array.from(new Set(transactions.map(t => getBillingCycle(t.date, billingSettings.closingDay, billingSettings.cycleType)))).sort((a, b) => new Date(b) - new Date(a));
+                const filteredTrans = filteredTransactionsForStats;
+                let currentSelfTotal = 0; let currentGenieTotal = 0; const categoryStats = {}; let totalForPie = 0;
+
+                filteredTrans.forEach(t => {
+                    if (t.type === 'expense') {
+                        if (t.payer === 'genie') currentGenieTotal += t.amount;
+                        else {
+                            currentSelfTotal += t.amount;
+                            categoryStats[t.category] = (categoryStats[t.category] || 0) + t.amount;
+                            totalForPie += t.amount;
+                        }
+                    }
+                });
+
+                const pieData = Object.entries(categoryStats).sort((a, b) => b[1] - a[1]).map(([cat, val], index) => ({
+                    originalCategory: cat, category: getCat(cat), amount: val, percent: totalForPie === 0 ? 0 : val / totalForPie, color: chartColors[index % chartColors.length]
+                }));
+
+                const statDetailTrans = filteredTrans.filter(t => t.category === statDetailCategory && t.type === 'expense' && t.payer !== 'genie');
+
+                return (
+                    <div className="space-y-6 pb-24 animate-fade-in relative">
+                        <div className="flex justify-between items-center px-1">
+                            <h2 className="text-2xl font-bold text-slate-800">{t('statsTitle')}</h2>
+                            <div className="relative">
+                                <select value={statsCycle} onChange={(e) => setStatsCycle(e.target.value)} className="text-xs bg-white border border-slate-200 rounded-lg py-2 pl-3 pr-8 font-bold text-slate-600 focus:outline-none shadow-sm appearance-none">
+                                    <option value="all">📅 {t('allTime')}</option>
+                                    {allCycles.map(c => <option key={c} value={c}>🧾 {c}</option>)}
+                                </select>
+                                <ChevronDown size={14} className="absolute right-2 top-2.5 text-slate-400 pointer-events-none"/>
+                            </div>
+                        </div>
+
+                        {/* 四宮格數據 (移至統計頁面) */}
+                        <div className="grid grid-cols-2 gap-3 mb-6">
+                            <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col justify-center">
+                                <p className="text-[10px] text-slate-500 mb-1 flex items-center gap-1"><Landmark size={12}/> {t('netIncome')}</p>
+                                <p className={`font-black text-lg ${globalStats.monthNetIncome >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                    NT${globalStats.monthNetIncome.toLocaleString()}
+                                </p>
+                            </div>
+                            <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col justify-center">
+                                <p className="text-[10px] text-slate-500 mb-1 flex items-center gap-1"><CalendarClock size={12}/> {t('todayExp')}</p>
+                                <p className="font-bold text-slate-800 text-lg">NT${globalStats.todayExpense.toLocaleString()}</p>
+                            </div>
+                            <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col justify-center">
+                                <p className="text-[10px] text-slate-500 mb-1 flex items-center gap-1"><CalendarClock size={12}/> {t('weekExp')}</p>
+                                <p className="font-bold text-slate-800 text-lg">NT${globalStats.weekExpense.toLocaleString()}</p>
+                            </div>
+                            <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col justify-center">
+                                <p className="text-[10px] text-slate-500 mb-1 flex items-center gap-1"><PieChart size={12}/> {t('monthExp')}</p>
+                                <p className="font-bold text-slate-800 text-lg">NT${globalStats.monthExpense.toLocaleString()}</p>
+                            </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
+                                <p className="text-[10px] text-slate-500 mb-1 flex items-center gap-1"><User size={10}/> {t('selfExp')}</p>
+                                <p className="text-lg font-bold text-slate-800">NT$ {currentSelfTotal.toLocaleString()}</p>
+                            </div>
+                            <div className="bg-purple-50 p-4 rounded-xl border border-purple-100 shadow-sm">
+                                <p className="text-[10px] text-purple-500 mb-1 flex items-center gap-1"><Sparkles size={10}/> {t('genieExp')}</p>
+                                <p className="text-lg font-bold text-purple-700">NT$ {currentGenieTotal.toLocaleString()}</p>
+                            </div>
+                        </div>
+
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                            <h3 className="font-bold text-slate-700 mb-6 flex items-center gap-2"><PieChart size={18} className="text-blue-500"/> {t('catDist')}</h3>
+                            <SimplePieChart data={pieData} onSliceClick={(cat) => setStatDetailCategory(cat)} t={t} lang={lang} />
+                        </div>
+
+                        {/* 明細 Drill-down Modal */}
+                        {statDetailCategory && (
+                            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex flex-col justify-end sm:justify-center items-center p-4 animate-fade-in" onClick={() => setStatDetailCategory(null)}>
+                                <div className="bg-white w-full max-w-sm rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl max-h-[80vh] flex flex-col animate-slide-up" onClick={e => e.stopPropagation()}>
+                                    <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-100">
+                                        <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                            <div className="w-3 h-3 rounded-full" style={{backgroundColor: pieData.find(p=>p.originalCategory===statDetailCategory)?.color || '#3b82f6'}}></div>
+                                            {getCat(statDetailCategory)} {t('statDetail')}
+                                        </h3>
+                                        <button onClick={() => setStatDetailCategory(null)} className="p-1 bg-slate-100 rounded-full text-slate-500"><X size={18} /></button>
+                                    </div>
+                                    <div className="overflow-y-auto no-scrollbar space-y-2 flex-1 pb-4">
+                                        {statDetailTrans.length > 0 ? statDetailTrans.map(tr => (
+                                            <div key={tr.id} className="bg-slate-50 p-3 rounded-xl flex justify-between items-center">
+                                                <div>
+                                                    <p className="font-bold text-sm text-slate-800">{tr.note || getCat(tr.category)}</p>
+                                                    <p className="text-[10px] text-slate-400">{tr.date}</p>
+                                                </div>
+                                                <p className="font-bold text-slate-800">NT$ {tr.amount.toLocaleString()}</p>
+                                            </div>
+                                        )) : <p className="text-center text-xs text-slate-400 py-4">無資料</p>}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                );
+            };
+
+            const renderCards = () => {
+                const todayStr = new Date().toISOString().split('T')[0];
+                const currentCycleStr = getBillingCycle(todayStr, billingSettings.closingDay, billingSettings.cycleType);
+                const currentSelfBill = globalStats.creditBills[currentCycleStr] || { total: 0, unpaid: 0, items: [] };
+                const currentGenieBill = globalStats.genieBills[currentCycleStr] || { total: 0, items: [] };
+                let pastDueTotal = 0;
+                Object.keys(globalStats.creditBills).forEach(date => { if (date !== currentCycleStr) pastDueTotal += globalStats.creditBills[date].unpaid; });
+                const isCurrentBillPaid = currentSelfBill.unpaid === 0 && currentSelfBill.total > 0;
+                const allBillDates = Array.from(new Set([...globalStats.sortedBillDates, ...globalStats.sortedGenieDates])).sort((a, b) => new Date(b) - new Date(a));
+
+                return (
+                    <div className="space-y-6 pb-24 animate-fade-in">
+                        <h2 className="text-xl font-bold text-slate-800 px-1 flex items-center gap-2"><CreditCard className="text-blue-600"/> {t('cardTitle')}</h2>
+                        <div className="bg-slate-800 text-white p-5 rounded-2xl shadow-lg relative overflow-hidden">
+                            <div className="absolute top-0 right-0 p-4 opacity-10"><CreditCard size={100} /></div>
+                            <div className="relative z-10">
+                                <div className="flex justify-between items-start mb-2">
+                                    <div>
+                                        <p className="text-slate-300 text-xs font-bold mb-1 flex items-center gap-1">{t('cardClose')}: {currentCycleStr} {isCurrentBillPaid && <span className="bg-emerald-500 text-white text-[10px] px-2 py-0.5 rounded-full ml-1">{t('paid')}</span>}</p>
+                                        <div className="text-3xl font-bold">NT$ {currentSelfBill.total.toLocaleString()}</div>
+                                        <p className="text-[10px] text-slate-400 mt-1">{t('myPayAmt')}</p>
+                                    </div>
+                                    <button onClick={() => handleExportBillText(currentCycleStr, currentSelfBill, currentGenieBill)} className="p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors text-white backdrop-blur-sm shadow-sm flex items-center gap-1"><FileText size={16} /><span className="text-[10px] font-bold">{t('exportBtn')}</span></button>
+                                </div>
+                                {(currentGenieBill.total > 0) && (
+                                    <div className="mt-3 bg-white/10 p-3 rounded-xl flex items-center justify-between border border-white/10">
+                                        <div className="flex items-center gap-2"><div className="w-6 h-6 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-300"><Sparkles size={14} /></div><span className="text-xs text-purple-200 font-medium">{t('genieThisMonth')}</span></div>
+                                        <span className="text-sm font-bold text-purple-200">NT$ {currentGenieBill.total.toLocaleString()}</span>
+                                    </div>
+                                )}
+                                <div className="mt-4 pt-4 border-t border-slate-700 flex justify-end">
+                                    {currentSelfBill.total > 0 ? (
+                                        <button onClick={() => toggleBillPayment(currentCycleStr, !isCurrentBillPaid)} className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-xs transition-all ${isCurrentBillPaid ? 'bg-emerald-600 text-white' : 'bg-white text-slate-900'}`}>
+                                            {isCurrentBillPaid ? <CheckCircle size={16} /> : <div className="w-4 h-4 rounded-full border-2 border-slate-900"></div>}
+                                            {isCurrentBillPaid ? t('paid') : t('markPaid')}
+                                        </button>
+                                    ) : <span className="text-xs text-slate-500 italic">{t('noSelfExp')}</span>}
+                                </div>
+                            </div>
+                        </div>
+
+                        {pastDueTotal > 0 && <div className="bg-red-50 border border-red-200 p-3 rounded-xl flex items-center gap-2 text-red-700 text-xs font-bold animate-pulse"><AlertCircle size={16} /><span>{t('pastDue')} NT$ {pastDueTotal.toLocaleString()}</span></div>}
+
+                        <div className="space-y-3">
+                            <h3 className="text-xs font-bold text-slate-400 px-1 mt-4 uppercase tracking-wider">{t('historyCards')}</h3>
+                            {allBillDates.length > 0 ? allBillDates.map(date => {
+                                const selfBill = globalStats.creditBills[date] || { total: 0, unpaid: 0, items: [] };
+                                const genieBill = globalStats.genieBills[date] || { total: 0, items: [] };
+                                const isExpanded = expandedBill === date;
+                                const isCurrent = date === currentCycleStr;
+                                const isFullyPaid = selfBill.unpaid === 0;
+                                return (
+                                    <div key={date} className={`bg-white rounded-xl shadow-sm border transition-all ${isFullyPaid && selfBill.total > 0 ? 'border-slate-100' : 'border-blue-100'} ${isCurrent ? 'ring-2 ring-blue-100 border-blue-300' : ''}`}>
+                                        <div className="p-4 cursor-pointer" onClick={() => setExpandedBill(isExpanded ? null : date)}>
+                                            <div className="flex justify-between items-center mb-2">
+                                                <div className="flex items-center gap-3">
+                                                    {selfBill.total > 0 ? (
+                                                        <button onClick={(e) => { e.stopPropagation(); toggleBillPayment(date, !isFullyPaid); }} className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${isFullyPaid ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-300 hover:bg-slate-200'}`}>
+                                                            {isFullyPaid ? <CheckCircle size={18} /> : <div className="w-4 h-4 rounded-full border-2 border-slate-300"></div>}
+                                                        </button>
+                                                    ) : <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-300"><CreditCard size={16}/></div>}
+                                                    <div>
+                                                        <p className="font-bold text-sm text-slate-800 flex items-center gap-2">{date}</p>
+                                                        <p className="text-[10px] text-slate-400">{selfBill.items.length + genieBill.items.length} {t('transCount')}</p>
+                                                    </div>
+                                                </div>
+                                                {isExpanded ? <ChevronUp size={16} className="text-slate-300"/> : <ChevronDown size={16} className="text-slate-300"/>}
+                                            </div>
+                                            <div className="flex items-center justify-end gap-4 pl-11">
+                                                {selfBill.total > 0 && <div className="text-right"><p className="text-[9px] text-slate-400">{t('selfPay')}</p><p className={`font-bold text-sm ${isFullyPaid ? 'text-slate-400 line-through' : 'text-slate-800'}`}>${selfBill.total.toLocaleString()}</p></div>}
+                                                {genieBill.total > 0 && <div className="text-right"><p className="text-[9px] text-purple-400">{t('geniePay')}</p><p className="font-bold text-sm text-purple-600">${genieBill.total.toLocaleString()}</p></div>}
+                                            </div>
+                                        </div>
+                                        {isExpanded && (
+                                            <div className="border-t border-slate-50 bg-slate-50/50 p-3 rounded-b-xl space-y-4 animate-fade-in">
+                                                {selfBill.items.length > 0 && (
+                                                    <div>
+                                                        <div className="space-y-1">
+                                                            {selfBill.items.map(item => (
+                                                                <div key={item.id} className="flex justify-between text-[11px] text-slate-600 px-2 py-1 bg-white rounded border border-slate-100">
+                                                                    <div className="flex gap-2"><span className="text-slate-400 font-mono">{item.date.slice(5)}</span><span className="font-bold">{item.note || getCat(item.category)}</span></div>
+                                                                    <span className="font-medium text-slate-800">${item.amount.toLocaleString()}</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {genieBill.items.length > 0 && (
+                                                    <div>
+                                                        <div className="space-y-1 mt-2">
+                                                            {genieBill.items.map(item => (
+                                                                <div key={item.id} className="flex justify-between text-[11px] text-purple-700 px-2 py-1 bg-purple-50 rounded border border-purple-100">
+                                                                    <div className="flex gap-2"><span className="text-purple-400 font-mono">{item.date.slice(5)}</span><span className="font-bold">{item.note || getCat(item.category)}</span></div>
+                                                                    <span className="font-bold">${item.amount.toLocaleString()}</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            }) : <div className="text-center py-10 text-xs text-slate-400 bg-white rounded-xl border border-dashed">{t('noRecord')}</div>}
+                        </div>
+                    </div>
+                );
+            };
+
+            const renderSearch = () => {
+                const filteredTransactions = transactions.filter(t => {
+                    const matchKeyword = searchKeyword ? (t.category.includes(searchKeyword) || t.note.includes(searchKeyword) || t.paymentMethod.includes(searchKeyword)) : true;
+                    const matchMinAmount = searchMinAmount ? t.amount >= parseFloat(searchMinAmount) : true;
+                    const matchMaxAmount = searchMaxAmount ? t.amount <= parseFloat(searchMaxAmount) : true;
+                    const matchCategory = searchCategory ? t.category === searchCategory : true;
+                    const matchStartDate = searchStartDate ? t.date >= searchStartDate : true;
+                    const matchEndDate = searchEndDate ? t.date <= searchEndDate : true;
+                    return matchKeyword && matchMinAmount && matchMaxAmount && matchCategory && matchStartDate && matchEndDate;
+                });
+                const isFiltering = searchKeyword || searchMinAmount || searchMaxAmount || searchCategory || searchStartDate || searchEndDate;
+
+                return (
+                    <div className="space-y-4 pb-24 animate-fade-in flex flex-col h-[calc(100vh-140px)]">
+                        <div className="flex justify-between items-center px-1">
+                            <h2 className="text-2xl font-bold text-slate-800">{t('searchTitle')}</h2>
+                            <button onClick={() => setShowFilters(!showFilters)} className={`p-2 rounded-lg transition-colors ${showFilters ? 'bg-blue-100 text-blue-600' : 'bg-white text-slate-400 border border-slate-100 shadow-sm'}`}><Filter size={20} /></button>
+                        </div>
+                        
+                        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 space-y-3">
+                            <div className="relative">
+                                <Search className="absolute left-3 top-3 text-slate-400" size={18} />
+                                <input type="text" placeholder={t('searchPh')} value={searchKeyword} onChange={(e) => setSearchKeyword(e.target.value)} className="w-full bg-slate-50 p-2.5 pl-10 rounded-lg border border-slate-100 focus:outline-none focus:border-blue-400 text-sm text-slate-700" />
+                            </div>
+                            {showFilters && (
+                                <div className="space-y-3 pt-3 border-t border-slate-50 animate-fade-in">
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <input type="date" value={searchStartDate} onChange={(e) => setSearchStartDate(e.target.value)} className="bg-slate-50 p-2 rounded border border-slate-100 text-[10px]" />
+                                        <input type="date" value={searchEndDate} onChange={(e) => setSearchEndDate(e.target.value)} className="bg-slate-50 p-2 rounded border border-slate-100 text-[10px]" />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <input type="number" placeholder="Min" value={searchMinAmount} onChange={(e) => setSearchMinAmount(e.target.value)} className="bg-slate-50 p-2 rounded border border-slate-100 text-[10px]" />
+                                        <input type="number" placeholder="Max" value={searchMaxAmount} onChange={(e) => setSearchMaxAmount(e.target.value)} className="bg-slate-50 p-2 rounded border border-slate-100 text-[10px]" />
+                                    </div>
+                                    <select value={searchCategory} onChange={(e) => setSearchCategory(e.target.value)} className="w-full bg-slate-50 p-2 rounded border border-slate-100 text-[10px]">
+                                        <option value="">All Categories</option>
+                                        {[...expenseCategories, ...incomeCategories].map(c => <option key={c} value={c}>{getCat(c)}</option>)}
+                                    </select>
+                                </div>
+                            )}
+                            {isFiltering && (
+                                <button onClick={clearSearch} className="w-full py-2 text-xs text-blue-600 font-bold bg-blue-50 rounded-lg hover:bg-blue-100 transition flex items-center justify-center gap-1"><X size={12} /> {t('clearFilter')}</button>
+                            )}
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto space-y-2 no-scrollbar">
+                            <p className="text-[10px] text-slate-400 font-bold px-1 uppercase tracking-wider">{t('totalResult').replace('{num}', filteredTransactions.length)}</p>
+                            {filteredTransactions.length > 0 ? filteredTransactions.map(tData => (
+                                <div onClick={() => setSelectedTransaction(tData)} key={tData.id} className="cursor-pointer bg-white p-3 rounded-xl border border-slate-100 flex justify-between items-center relative overflow-hidden group hover:shadow-sm transition-all active:scale-[0.99]">
+                                    {tData.payer === 'genie' && <div className="absolute left-0 top-0 bottom-0 w-1 bg-purple-400"></div>}
+                                    <div className="flex items-center gap-3">
+                                        <div className="text-[10px] font-black text-slate-300 w-8 leading-tight">{tData.date.split('-')[1]}<br/>{tData.date.split('-')[2]}</div>
+                                        <div>
+                                            <p className="font-bold text-slate-800 text-sm flex items-center gap-1">{tData.note || getCat(tData.category)} {tData.payer === 'genie' && <Sparkles size={10} className="text-purple-500"/>}</p>
+                                            <p className="text-[10px] text-slate-400 truncate max-w-[120px]">{getCat(tData.category)} • {getPay(tData.paymentMethod)}</p>
+                                        </div>
+                                    </div>
+                                    <div className="text-right flex items-center gap-4">
+                                        <p className={`font-bold text-sm ${tData.payer === 'genie' ? 'text-purple-600' : tData.type === 'income' ? 'text-emerald-600' : 'text-slate-800'}`}>{tData.type === 'income' ? '+' : ''}{tData.amount.toLocaleString()}</p>
+                                        <button onClick={(e) => { e.stopPropagation(); triggerDelete(tData.id); }} className="p-2 text-slate-200 hover:text-rose-500 transition-colors"><X size={16} /></button>
+                                    </div>
+                                </div>
+                            )) : <div className="text-center py-20 opacity-20"><Search size={48} className="mx-auto mb-2"/><p className="text-sm">{t('noRecord')}</p></div>}
+                        </div>
+                    </div>
+                );
+            };
+
+            const renderSubscriptions = () => (
+                <div className="pb-24 animate-fade-in space-y-6">
+                    <div className="flex justify-between items-center px-1">
+                        <h2 className="text-2xl font-bold text-slate-800">{t('subTitle')}</h2>
+                        <button onClick={() => setIsAddingSub(!isAddingSub)} className={`p-2 rounded-xl transition-all ${isAddingSub ? 'bg-slate-100 text-slate-400' : 'bg-blue-600 text-white shadow-lg shadow-blue-200'}`}>
+                            {isAddingSub ? <X size={20}/> : <Plus size={20}/>}
+                        </button>
+                    </div>
+
+                    {isAddingSub && (
+                        <div className="bg-white p-5 rounded-2xl shadow-lg border border-blue-100 animate-slide-up space-y-4">
+                            <h3 className="font-bold text-blue-900 text-sm">{t('addSub')}</h3>
+                            <div className="space-y-3">
+                                <div>
+                                    <label className="text-[10px] font-bold text-slate-400 uppercase">{t('subName')}</label>
+                                    <input type="text" value={subName} onChange={e => setSubName(e.target.value)} className="w-full border-b border-slate-200 py-2 font-bold text-slate-800 focus:outline-none focus:border-blue-500" />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-bold text-slate-400 uppercase">{t('subAmt')}</label>
+                                    <input type="number" value={subAmount} onChange={e => setSubAmount(e.target.value)} className="w-full border-b border-slate-200 py-2 font-bold text-slate-800 focus:outline-none focus:border-blue-500" />
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="text-[10px] font-bold text-slate-400 uppercase">{t('subCycle')}</label>
+                                        <select value={subCycle} onChange={e => setSubCycle(e.target.value)} className="w-full bg-slate-50 py-2 rounded font-bold text-sm text-slate-700 mt-1">
+                                            <option value="monthly">{t('cycleMon')}</option><option value="weekly">{t('cycleWeek')}</option><option value="yearly">{t('cycleYear')}</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-bold text-slate-400 uppercase">{t('subNext')}</label>
+                                        <input type="date" value={subNextDate} onChange={e => setSubNextDate(e.target.value)} className="w-full bg-slate-50 py-2 rounded font-bold text-sm text-slate-700 mt-1" />
+                                    </div>
+                                </div>
+                                <button onClick={handleAddSubscription} className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold text-sm mt-2 shadow-lg shadow-blue-200 active:scale-95 transition-transform">{t('addSubConfirm')}</button>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="space-y-3">
+                        {subscriptions.length > 0 ? subscriptions.map(sub => {
+                            const daysUntil = Math.ceil((new Date(sub.nextDate) - new Date()) / (1000 * 60 * 60 * 24));
+                            const isDue = daysUntil <= 3; const isOverdue = daysUntil < 0;
+                            return (
+                                <div key={sub.id} className={`bg-white p-4 rounded-xl shadow-sm border flex justify-between items-center ${isDue ? 'border-orange-200 bg-orange-50/30' : 'border-slate-100'}`}>
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-500 flex items-center justify-center"><Repeat size={20} /></div>
+                                        <div>
+                                            <p className="font-bold text-slate-800">{sub.name}</p>
+                                            <p className="text-[10px] text-slate-400 flex items-center gap-1">
+                                                {sub.cycle === 'monthly' ? t('cycleMon') : sub.cycle === 'weekly' ? t('cycleWeek') : t('cycleYear')} • {sub.nextDate}
+                                                {isOverdue ? <span className="text-red-500 font-bold">{t('overdue')}</span> : isDue && <span className="text-orange-500 font-bold">{t('soon')}</span>}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <div className="text-right mr-2"><p className="font-black text-slate-800">NT$ {sub.amount.toLocaleString()}</p></div>
+                                        <div className="flex flex-col gap-1">
+                                        <button onClick={() => handlePaySubscription(sub)} className="bg-emerald-50 text-emerald-600 p-2 rounded-lg hover:bg-emerald-100 transition-colors"><PlayCircle size={20} /></button>
+                                        <button onClick={() => deleteSubscription(sub.id)} className="bg-slate-50 text-slate-400 p-2 rounded-lg hover:bg-rose-50 hover:text-rose-500 transition-colors"><Trash2 size={18} /></button>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    }) : <div className="text-center py-10 bg-white rounded-xl border border-dashed border-slate-200"><p className="text-sm text-slate-400">{t('noSubs')}</p></div>}
+                </div>
+            </div>
+        );
+
+        const renderSettings = () => (
+                <div className="pb-24 space-y-6 animate-fade-in px-1">
+                    <h2 className="text-2xl font-bold text-slate-800">{t('settingTitle')}</h2>
+                    
+                    {/* 語言切換 */}
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-4">
+                        <label className="block text-xs font-bold text-slate-400 uppercase flex items-center gap-1"><Globe size={14}/> {t('langTitle')}</label>
+                        <div className="flex bg-slate-50 p-1 rounded-xl">
+                            <button onClick={() => setLang('zh-TW')} className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all ${lang === 'zh-TW' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'}`}>{t('langZh')}</button>
+                            <button onClick={() => setLang('en')} className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all ${lang === 'en' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'}`}>{t('langEn')}</button>
+                        </div>
+                    </div>
+
+                    {/* 每日預算設定 */}
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                        <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">{t('dailyBudget')}</label>
+                        <div className="relative">
+                            <input type="number" min="0" value={billingSettings.dailyBudget || 0} onChange={(e) => setBillingSettings({...billingSettings, dailyBudget: parseInt(e.target.value) || 0})} className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 text-xl font-bold text-slate-800 focus:outline-none focus:border-blue-400"/>
+                            <span className="absolute right-4 top-5 text-slate-300 font-bold">NT$</span>
+                        </div>
+                    </div>
+
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-6">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">{t('monthlyClose')}</label>
+                            <div className="relative">
+                                <input type="number" min="1" max="31" value={billingSettings.closingDay} onChange={(e) => setBillingSettings({...billingSettings, closingDay: parseInt(e.target.value) || 1})} className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 text-xl font-bold text-slate-800 focus:outline-none focus:border-blue-400"/>
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-400 mb-3 uppercase tracking-wide">{t('closeFreq')}</label>
+                            <div className="space-y-2">
+                                {['monthly', 'bimonthly-even', 'bimonthly-odd'].map((type, i) => (
+                                    <button key={type} onClick={() => setBillingSettings({...billingSettings, cycleType: type})} className={`w-full text-left p-4 rounded-xl border-2 transition-all ${billingSettings.cycleType === type ? 'border-blue-500 bg-blue-50' : 'border-slate-50 bg-white'}`}>
+                                        <div className="font-bold text-sm text-slate-700">{i === 0 ? t('freq1') : i === 1 ? t('freq2') : t('freq3')}</div>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-4">
+                        <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">{t('backupTitle')}</label>
+                        <p className="text-[10px] text-slate-400 mb-4">{t('backupDesc')}</p>
+                        <div className="flex gap-3">
+                            <button onClick={handleExport} className="flex-1 py-3 px-4 bg-emerald-50 text-emerald-600 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-emerald-100 transition-colors"><Download size={18} /> {t('exportZip')}</button>
+                            <button onClick={handleImportClick} className="flex-1 py-3 px-4 bg-blue-50 text-blue-600 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-blue-100 transition-colors"><Upload size={18} /> {t('importZip')}</button>
+                            <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".json" className="hidden" />
+                        </div>
+                    </div>
+
+                    <button onClick={triggerReset} className="w-full py-3 text-rose-500 font-bold text-sm bg-rose-50 rounded-xl hover:bg-rose-100 transition-colors">{t('resetAll')}</button>
+                </div>
+            );
+
+            return (
+                <div className="bg-slate-50 min-h-screen font-sans text-slate-900 flex justify-center selection:bg-blue-100">
+                    <div className="w-full max-w-md bg-slate-50 min-h-screen relative shadow-2xl overflow-x-hidden flex flex-col">
+                        <header className="px-6 py-5 flex justify-between items-center bg-white/90 sticky top-0 z-40 border-b border-slate-100 backdrop-blur-md">
+                            <h1 className="text-xl font-black tracking-tighter flex items-center gap-2">
+                                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center text-white shadow-sm"><Landmark size={18} /></div>
+                                {t('appTitle')}
+                            </h1>
+                            <div className="flex items-center gap-2">
+                                <button onClick={() => setActiveTab('settings')} className={`p-2 rounded-full transition-colors ${activeTab === 'settings' ? 'bg-slate-100 text-slate-800' : 'text-slate-300'}`}><Settings size={20} /></button>
+                            </div>
+                        </header>
+
+                        <main className="flex-1 p-5 pb-32 overflow-y-auto no-scrollbar">
+                            {activeTab === 'home' && renderHome()}
+                            {activeTab === 'stats' && renderStats()}
+                            {activeTab === 'cards' && renderCards()}
+                            {activeTab === 'search' && renderSearch()}
+                            {activeTab === 'add' && renderAdd()}
+                            {activeTab === 'settings' && renderSettings()}
+                            {activeTab === 'subscriptions' && renderSubscriptions()} 
+                        </main>
+
+                        <nav className="fixed bottom-0 w-full max-w-md bg-white border-t border-slate-100 px-6 py-2 flex justify-between items-center z-50 pb-safe shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
+                            <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'home' ? 'text-blue-600 scale-110' : 'text-slate-400'}`}><Home size={22} strokeWidth={activeTab === 'home' ? 2.5 : 2} /><span className="text-[9px] font-bold">{t('home')}</span></button>
+                            <button onClick={() => setActiveTab('cards')} className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'cards' ? 'text-blue-600 scale-110' : 'text-slate-400'}`}><CreditCard size={22} strokeWidth={activeTab === 'cards' ? 2.5 : 2} /><span className="text-[9px] font-bold">{t('cards')}</span></button>
+                            <div className="relative -top-5">
+                                <button onClick={() => setActiveTab('add')} className={`p-4 rounded-2xl shadow-xl transition-all border-4 border-slate-50 ${activeTab === 'add' ? 'bg-indigo-600 text-white rotate-45 shadow-indigo-200' : 'bg-slate-800 text-white hover:bg-slate-700'}`}>
+                                    <Plus size={28} strokeWidth={2.5} />
+                                </button>
+                            </div>
+                            <button onClick={() => setActiveTab('stats')} className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'stats' ? 'text-blue-600 scale-110' : 'text-slate-400'}`}><PieChart size={22} strokeWidth={activeTab === 'stats' ? 2.5 : 2} /><span className="text-[9px] font-bold">{t('stats')}</span></button>
+                            <button onClick={() => setActiveTab('search')} className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'search' || activeTab === 'subscriptions' ? 'text-blue-600 scale-110' : 'text-slate-400'}`}><Search size={22} strokeWidth={activeTab === 'search' ? 2.5 : 2} /><span className="text-[9px] font-bold">{t('search')}</span></button>
+                        </nav>
+                        
+                        {/* 交易詳情Modal (與原版相同，加入翻譯處理) */}
+                        {selectedTransaction && (
+                            <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setSelectedTransaction(null)}>
+                                <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl relative animate-slide-up" onClick={e => e.stopPropagation()}>
+                                    <div className="w-12 h-1 bg-slate-200 rounded-full mx-auto mb-6 sm:hidden"></div>
+                                    <button onClick={() => setSelectedTransaction(null)} className="absolute right-4 top-4 p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 transition-colors hidden sm:block"><X size={20} /></button>
+                                    <div className="text-center mb-8">
+                                        <div className={`w-20 h-20 mx-auto rounded-full flex items-center justify-center mb-4 shadow-sm ${selectedTransaction.payer === 'genie' ? 'bg-purple-100 text-purple-600' : selectedTransaction.type === 'income' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
+                                            {selectedTransaction.payer === 'genie' ? <Sparkles size={40} /> : (selectedTransaction.type === 'income' ? <Landmark size={40} /> : <CreditCard size={40} />)}
+                                        </div>
+                                        <h3 className="text-xl font-bold text-slate-800">{getCat(selectedTransaction.category)}</h3>
+                                        <p className={`text-4xl font-black mt-2 ${selectedTransaction.payer === 'genie' ? 'text-purple-600' : selectedTransaction.type === 'income' ? 'text-emerald-600' : 'text-slate-900'}`}>
+                                            {selectedTransaction.type === 'income' ? '+' : ''} {selectedTransaction.amount.toLocaleString()}
+                                        </p>
+                                    </div>
+                                    <div className="space-y-4 bg-slate-50 p-4 rounded-2xl">
+                                        <div className="flex justify-between items-center border-b border-slate-100 pb-3"><span className="text-slate-400 text-xs font-bold uppercase tracking-wider">{t('dateField')}</span><span className="text-slate-700 font-bold text-sm">{selectedTransaction.date}</span></div>
+                                        <div className="flex justify-between items-center border-b border-slate-100 pb-3"><span className="text-slate-400 text-xs font-bold uppercase tracking-wider">{t('payMethod')}</span><span className="text-slate-700 font-bold text-sm">{getPay(selectedTransaction.paymentMethod)}</span></div>
+                                        {selectedTransaction.note && <div className="flex justify-between items-start pt-1"><span className="text-slate-400 text-xs font-bold uppercase tracking-wider mt-0.5">{t('nameField')}</span><span className="text-slate-700 font-bold text-sm max-w-[200px] text-right break-words">{selectedTransaction.note}</span></div>}
+                                    </div>
+                                    <div className="mt-8 flex gap-3">
+                                        <button onClick={() => { setSelectedTransaction(null); triggerDelete(selectedTransaction.id); }} className="flex-1 py-3.5 rounded-xl bg-rose-50 text-rose-500 font-bold text-sm hover:bg-rose-100 transition-colors flex items-center justify-center gap-2"><Trash2 size={18} /> {t('confirmDel')}</button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        <ConfirmModal isOpen={confirmState.isOpen} title={confirmState.title} message={confirmState.message} confirmText={confirmState.confirmText} confirmColor={confirmState.confirmColor} onConfirm={handleConfirmAction} onCancel={() => setConfirmState({ ...confirmState, isOpen: false, type: null, data: null })} t={t}/>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
